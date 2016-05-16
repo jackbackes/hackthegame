@@ -16,6 +16,7 @@ GameModel.prototype.addBeginningState = function(){
   this.gameRound = parseInt(readline());
   var inputs = readline().split(' ');
   this.user = {
+    playerIndex: 0;
     coords: {
       x: parseInt(inputs[0]), // Your x position
       y: parseInt(inputs[1]), // Your y position
@@ -23,9 +24,12 @@ GameModel.prototype.addBeginningState = function(){
     }
   }
 
+  this.players = [this.user];
+
   for (var i = 0; i < opponentCount; i++) {
     this.opponents = {};
     this.opponents[i] = {
+        playerIndex: i+1;
         inputs: readline().split(' '),
         coords: {
           x: parseInt(inputs[0]), //  x position of opponenet
@@ -33,11 +37,14 @@ GameModel.prototype.addBeginningState = function(){
           backInTimeLeft: parseInt(inputs[2]) // Remaining back in time
         }
       }
+    this.players.push(this.opponents[i]);
   }
+
+
   var thisState = {
     board: []
   };
-  this.states = [];
+
   for (var i = 0; i < 20; i++) {
     thisState.board[i] = readline(); // One line of the map ('.' = free, '0' = you, otherwise the id of the opponent)
   }
@@ -107,12 +114,12 @@ GameModel.prototype.processRandomNodes = function( state ){
   var self = this;
   state = state || this.states[0];
   var randomNodes = this.findNeutrals( state ).pickNRandomNodesOfColor( N_RANDOM_NODES, state, '.' );
+  state.randomNodes = randomNodes;
   randomNodes.forEach( function( node ){
       var thisShape = node.createShape();
       if(!state.queue) state.queue = [];
       node.processed = true;
       node.addConnectionsToQueue( state.queue, thisShape );
-
   })
 }
 
@@ -122,6 +129,19 @@ GameModel.prototype.tesellate = function( state ){
   this.processEntireQueue( state );
   return this;
 }
+
+// GameModel.prototype.persistTesellation = function(){
+//   var state = this.states[0];
+//   var previousState = this.states[1];
+//   state.randomNodes = previousState.randomNodes;
+//   state.randomNodes.forEach( function( node ){
+//       var thisShape = node.createShape();
+//       if(!state.queue) state.queue = [];
+//       node.processed = true;
+//       node.addConnectionsToQueue( state.queue, thisShape );
+//   })
+//   this.processEntireQueue( state );
+// }
 
 GameModel.prototype.addToQueue = function( node, state ){
   state = state || this.state[0];
@@ -206,8 +226,9 @@ Node.prototype.addConnectionToQueue = function( queue, connection, shape ) {
 }
 Node.prototype.addConnectionsToQueue = function( queue, shape ) {
   var self = this;
+  var color = self.color;
   this.connections.forEach( function( connection ) {
-    self.addConnectionToQueue( queue, connection, shape )
+    if(connection.color === self.color) self.addConnectionToQueue( queue, connection, shape )
   })
 }
 
@@ -232,7 +253,142 @@ function Shape( color, shapeIndex, startingNode ) {
 }
 Shape.prototype.findCentroid = function(){}
 
+//minimax function
+var Minimax = function(state, depth, maximizingPlayer, heuristic){
+  return this;
+}
+
+Minimax.prototype.setDepth = function( depth ){
+  this.depth = depth;
+  return this;
+}
+
+
+Minimax.prototype.state = function( state ){
+  this.state = state;
+  return this;
+}
+
+Minimax.prototype.addHeuristic = function( heuristic, weighting ) {
+  this.heuristics.push( {heuristic, weighting} );
+  return this;
+}
+
+Minimax.prototype.maximizingPlayer = function( maximizingPlayer ){
+  this.maximizingPlayer = maximizingPlayer;
+  return this;
+}
+
+Minimax.prototype.minimizingPlayers = function( players, maximizingPlayer ){
+  var maximizingPlayer = maximizingPlayer || this.maximizingPlayer;
+  this.minimizingPlayers = players.filter( function( player ){
+    return maximizingPlayer.playerIndex !== player.playerIndex;
+  })
+  return this;
+}
+
+
+Minimax.prototype.calculateHeuristicValue( heuristic, state ){
+  var maximizingPlayer = this.maximizingPlayer;
+  var minimizingPlayers = this.minimizingPlayers;
+  var max = this.heuristics.reduce( function( previous, weightedHeuristic ){
+    var heuristic = weightedHeuristic.heuristic;
+    var weighting = weightedHeuristic.weighting;
+    return prev + weighting * heuristic( state, maximizingPlayer );
+  })
+  var mins = minimizingPlayers.map( function( minimizingPlayer ) {
+    this.heuristics.reduce( function( previous, weightedHeuristic ){
+      var heuristic = weightedHeuristic.heuristic;
+      var weighting = weightedHeuristic.weighting;
+      return prev + weighting * heuristic( state, minimizingPlayer );
+    })
+  })
+  this.heuristicValues = {
+    max: max,
+    mins: mins
+  }
+  return this;
+}
+
+Minimax.prototype.exec = function(){
+  var possibleStates = this.state.nextStates();
+  if (!depth || !possibleStates.length) return heuristic(state, maximizingPlayer);
+  var currentPlayer = state.nextMovePlayer;
+  var reducerFn = maximizingPlayer === currentPlayer ? Math.max : Math.min;
+  var mappedStates = possibleStates.map(function(state){
+    var miniresult = minimax(state, depth-1, maximizingPlayer);
+    //console.log('depth:',depth,'MINIresult:',miniresult)
+    return miniresult;
+  });
+  //console.log('depth:',depth,'MAPPEDstates:',mappedStates)
+  var result = reducerFn(...mappedStates);
+  //console.log('depth:',depth,'result:',result);
+  return result;
+}
+
+// ========
+//heuristics go here (add to Minimax with addHeuristic( heuristic, weighting ))
+// ========
+
+var heuristics = {
+  shapeArea: {
+    heuristic: function( state, player ){},
+    weighting: 0.5
+  },
+  movesToClose: {
+    heuristic: function( state, player ){},
+    weighting: 0.5
+  },
+  neutralsToClose: {
+    heuristic: function( )
+  }
+}
+
+
+function shapeArea( shape ){
+  return shape.nodes.length;
+}
+function getShapePerimeter( shape ){
+  var color = shape.color;
+  shape.perimeter = shape.nodes.filter( function( node ){
+    return node.connections.color !== color;
+  })
+  return shape.perimeter;
+}
+function nonColoredPerimeter( player, shape ){
+  var playerColor = player.color;
+  var shapePerimeter = shape.perimeter || getShapePerimeter( shape );
+  return shapePerimeter.filter( function( node ){
+    return node.color != playerColor;
+  })
+}
+Shape.prototype.getCenter(){
+
+}
+function sortPerimeterByDistance( player, shape, state){
+  var shapePerimeter = nonColoredPerimeter( player, shape );
+  return shapePerimeter.sort( function( prevNode, node ){
+    var playerX = player.coords.x;
+    var playerY = player.coords.y;
+    var currentX = node.x;
+    var currentY = node.y;
+    var currentDist = Math.abs( playerX - currentX ) + Math.abs( playerY - currentY );
+    var prevX = prevNode.x;
+    var prevY = prevNode.y;
+    var prevDist = Math.abs( playerX - prevX ) + Math.abs( playerY - prevY );
+  })
+}
+function bestPathToCenter( player, shape, state ){}
+function bestPathToPerimeter( player, shape ){}
+function movesToClose( shape, player, state ){}
+function neutralsToClose( shape, player, state ){}
+function scoreForShape( shape, player, state ){}
+function scorePerTurn( shape, player, state ){}
+
+
+// =========
 //initializing round
+// =========
 var currentRound = 0;
 var currentTurnState;
 while(true){
