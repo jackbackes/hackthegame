@@ -1,9 +1,12 @@
 //initializing game
 var N_RANDOM_NODES = 20;
+var __persistForNRounds = 2;
+var backRounds = 20;
+var backAfterRound = 30;
 var opponentCount = parseInt(readline()); // Opponent count
 var states = new GameModel(35, 20, opponentCount);
 var errors = [];
-var BEST_PICK_THRESHOLD = 0.6;
+var BEST_PICK_THRESHOLD = 0.2;
 var weights = {};
 
 function GameModel(width, height, opponentCount) {
@@ -22,8 +25,8 @@ GameModel.prototype.addBeginningState = function () {
         coords: {
             x: parseInt(inputs[0]), // Your x position
             y: parseInt(inputs[1]), // Your y position
-            backInTimeLeft: parseInt(inputs[2]) // Remaining back in time
-        }
+        },
+        backInTimeLeft: parseInt(inputs[2]) // Remaining back in time
     }
 
     this.players = [this.user];
@@ -36,8 +39,8 @@ GameModel.prototype.addBeginningState = function () {
             coords: {
                 x: parseInt(inputs[0]), //  x position of opponenet
                 y: parseInt(inputs[1]), // y position of opponent
-                backInTimeLeft: parseInt(inputs[2]) // Remaining back in time
-            }
+            },
+            backInTimeLeft: parseInt(inputs[2]) // Remaining back in time
         }
         this.players.push(this.opponents[i]);
     }
@@ -60,11 +63,13 @@ GameModel.prototype.addBeginningState = function () {
 GameModel.prototype.convertToNodes = function (currentState) {
     var self = this;
     var nodeMap = new Array(this.height);
+    currentState.allNodes = [];
     for (var heightIndex = 0; heightIndex < nodeMap.length; heightIndex++) {
         nodeMap[heightIndex] = new Array(this.width);
         for (var widthIndex = 0; widthIndex < this.width; widthIndex++) {
             var nodeColor = currentState.board[heightIndex][widthIndex]
             nodeMap[heightIndex][widthIndex] = new Node(widthIndex, heightIndex, nodeColor, currentState, currentState.nodeIndex++);
+            currentState.allNodes.push( nodeMap[heightIndex][widthIndex]);
         }
     }
     currentState.nodeMap = nodeMap;
@@ -187,6 +192,21 @@ GameModel.prototype.processEntireQueue = function (state) {
     }
 }
 
+GameModel.prototype.getRank = function ( currentTurnState ){
+  var scores = [0,0,0,0]
+  var rank = 1;
+  currentTurnState.allNodes.forEach( function( node ){
+    if(node.color === '0') scores[0]++
+    if(node.color === '1') scores[1]++
+    if(node.color === '2') scores[2]++
+    if(node.color === '3') scores[3]++
+  })
+  if( scores[0] < scores[1] ) rank++
+  if( scores[0] < scores[2] ) rank++
+  if( scores[0] < scores[3] ) rank++
+  return (this.players.length - rank) / this.players.length;
+}
+
 function Node(x, y, color, parentState, nodeIndex) {
     this.x = x;
     this.y = y;
@@ -299,7 +319,7 @@ Shape.prototype.value = function (player, state) {
     var normalizedPerimeter = perimeter/maxPerimeter;
     // printErr( area, perimeter, distances, normalizedDistance );
     // return normalizedDistance * area/(perimeter + distances[0]);
-    return normalizedDistance * normalizedArea/(normalizedPerimeter + distances[0])
+    return normalizedDistance * .45 + normalizedArea/(normalizedPerimeter + distances[0])
 }
 
 //minimax function
@@ -435,6 +455,14 @@ function sortPerimeterByDistance(player, shape) {
         var prevX = prevNode.x;
         var prevY = prevNode.y;
         var prevDist = Math.abs(playerX - prevX) + Math.abs(playerY - prevY);
+        try{
+          if( prevDist === currentDist ){
+            var prevSameColorNeighbors = prevNode.neighbors.filter( function( neighbor ){ return neighbor.color === '.' }).length
+            var currentSameColorNeighbors = node.neighbors.filter( function( neighbor ){ return neighbor.color === '.' }).length
+            return currentSameColorNeighbors - prevSameColorNeighbors - .5;
+          }
+        }
+        catch(err){return prevDist - currentDist}
         return prevDist - currentDist;
     })
     var sortedX = sortedPerimeter[0].x;
@@ -495,7 +523,6 @@ function pickBestShape(state, player) {
 var currentRound = 0;
 var currentTurnState;
 var __persist = false;
-var __persistForNRounds = 3;
 var messages = ["burninating the people"];
 while(true){
     try{
@@ -525,7 +552,10 @@ while(true){
         messages.unshift("closest Neutral");
         bestClosestPoint = closestNeutral;
       }
-      print(bestClosestPoint.x + " " + bestClosestPoint.y + " " + messages.join(', '));
+      var rank = states.getRank( currentTurnState );
+      printErr('rank:',rank, states.user.backInTimeLeft )
+      if( rank < .5 && currentRound > backAfterRound && Number(states.user.backInTimeLeft) > 0 ) print("BACK "+backRounds)
+      else print(bestClosestPoint.x + " " + bestClosestPoint.y + " " + messages.join(', '));
       messages = ["burninating the people"]
 
   }
