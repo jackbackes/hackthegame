@@ -482,10 +482,10 @@ while(true){
     //       printErr(shape.thisValue, shape.nodes[0].x, shape.nodes[0].y, shape.nodes.length);
     //   });
       var bestClosestPoint = getClosestPointOnPerimeter( states.players[0], bestPick )
-      if( !bestPick || bestPick.thisValue < BEST_PICK_THRESHOLD || bestPick.color !== '.' ){
+      if( !bestClosestPoint || bestPick.thisValue < BEST_PICK_THRESHOLD || bestClosestPoint.color !== '.' ){
         var playerX = states.players[0].x;
         var playerY = states.players[0].y;
-        var closestNeutral = this.neutrals.slice().sort( function ( prevNode, node ){
+        var closestNeutral = currentTurnState.neutrals.slice().sort( function ( prevNode, node ){
           var currentX = node.x;
           var currentY = node.y;
           var currentDist = Math.abs( playerX - currentX ) + Math.abs( playerY - currentY );
