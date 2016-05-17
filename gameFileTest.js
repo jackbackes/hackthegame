@@ -2,7 +2,9 @@
 var N_RANDOM_NODES = 20;
 var opponentCount = parseInt(readline()); // Opponent count
 var states = new GameModel(35, 20, opponentCount);
-
+var errors = [];
+var BEST_PICK_THRESHOLD = 0.6;
+var weights = {};
 
 function GameModel(width, height, opponentCount){
   this.width = width;
@@ -90,7 +92,10 @@ GameModel.prototype.findNeutrals = function( state ){
   state.neutrals = []
   state.nodeMap.forEach( function( row ) {
     row.forEach( function( node ){
-      state.neutrals.push( node );
+      if( node.color === '.' ){
+        state.neutrals.push( node );
+        printErr(node.color, node.x, node.y);
+      }
     })
   })
   return this;
@@ -103,17 +108,32 @@ GameModel.prototype.pickNRandomNodesOfColor = function( n, state, color ){
   if(state.neutrals) { var neutrals = state.neutrals }
   else { var neutrals = this.findNeutrals(state) }
   randomNodes = new Array(n);
+  this.randomNodeArray = [];
   for( var nodeIndex = 0; nodeIndex < randomNodes.length; nodeIndex++ ){
     var neutralIndex = Math.floor( Math.random() * neutrals.length )
+    this.randomNodeArray.push( neutralIndex );
     randomNodes[ nodeIndex ] = neutrals[ neutralIndex ];
   }
   return randomNodes;
 }
 
-GameModel.prototype.processRandomNodes = function( state ){
+GameModel.prototype.persistAndConvertRandomNodes = function( state ){
+  if(state.neutrals) { var neutrals = state.neutrals }
+  else { var neutrals = this.findNeutrals(state) }
+  var persistedNodes = this.randomNodeArray.map( function( neutralIndex ){
+    return neutrals[ neutralIndex ];
+  })
+  return persistedNodes;
+}
+
+GameModel.prototype.processRandomNodes = function( state, __persist ){
   var self = this;
   state = state || this.states[0];
-  var randomNodes = this.findNeutrals( state ).pickNRandomNodesOfColor( N_RANDOM_NODES, state, '.' );
+  if( __persist ){
+    var randomNodes = this.findNeutrals( state ).persistAndConvertRandomNodes( state );
+  } else {
+    var randomNodes = this.findNeutrals( state ).pickNRandomNodesOfColor( N_RANDOM_NODES, state, '.' );
+  }
   state.randomNodes = randomNodes;
   randomNodes.forEach( function( node ){
       var thisShape = node.createShape();
@@ -123,9 +143,10 @@ GameModel.prototype.processRandomNodes = function( state ){
   })
 }
 
-GameModel.prototype.tesellate = function( state ){
+
+GameModel.prototype.tesellate = function( state, __persist ){
   state = state || this.states[0]
-  this.processRandomNodes( state );
+  this.processRandomNodes( state, __persist );
   this.processEntireQueue( state );
   return this;
 }
@@ -446,25 +467,47 @@ function pickBestShape( state, player ){
 // =========
 var currentRound = 0;
 var currentTurnState;
+var __persist = false;
+var __persistForNRounds = 3;
+var messages = ["burninating the people"];
 while(true){
     try{
       states.addBeginningState();
       currentTurnState = states.states[0];
       states.findNodeNeighbors( currentTurnState );
       states.connectNodes( currentTurnState );
-      states.tesellate( currentTurnState );
+      states.tesellate( currentTurnState, __persist );
       var bestPick = pickBestShape( currentTurnState, states.players[0] )
       printErr( 'best pick test:', bestPick.thisValue, bestPick.nodes[0].x, bestPick.nodes[0].y, bestPick.nodes.length )
     //   currentTurnState.shapes['.'].forEach( function( shape ) {
     //       printErr(shape.thisValue, shape.nodes[0].x, shape.nodes[0].y, shape.nodes.length);
     //   });
       var bestClosestPoint = getClosestPointOnPerimeter( states.players[0], bestPick )
-      print(bestClosestPoint.x + " " + bestClosestPoint.y + " burninating the people");
+      if( !bestPick || bestPick.thisValue < BEST_PICK_THRESHOLD || bestPick.color !== '.' ){
+        var playerX = states.players[0].x;
+        var playerY = states.players[0].y;
+        var closestNeutral = this.neutrals.slice().sort( function ( prevNode, node ){
+          var currentX = node.x;
+          var currentY = node.y;
+          var currentDist = Math.abs( playerX - currentX ) + Math.abs( playerY - currentY );
+          var prevX = prevNode.x;
+          var prevY = prevNode.y;
+          var prevDist = Math.abs( playerX - prevX ) + Math.abs( playerY - prevY );
+          return prevDist - currentDist;
+        })[0]
+        messages.unshift("closest Neutral");
+        bestClosestPoint = closestNeutral;
+      }
+      print(bestClosestPoint.x + " " + bestClosestPoint.y + " " + messages.join(', '));
+      messages = ["burninating the people"]
 
-      currentRound++;
   }
   catch(err){
       print('17 10 whoops, there was a problem');
+      errors.push([currentRound, err]);
       printErr(err);
+      printErr(errors[0], errors[1], errors[2]);
   }
+  if(currentRound % __persistForNRounds !== 0) { __persist = true; messages.unshift("persisting")} else { __persist = false; };
+  currentRound++;
 }
