@@ -94,7 +94,6 @@ GameModel.prototype.findNeutrals = function( state ){
     row.forEach( function( node ){
       if( node.color === '.' ){
         state.neutrals.push( node );
-        printErr(node.color, node.x, node.y);
       }
     })
   })
