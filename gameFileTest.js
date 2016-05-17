@@ -241,6 +241,7 @@ Node.prototype.createShape = function(){
     '0': [],
     '1': [],
     '2': [],
+    '3': [],
     '.': []
   }
   this.shape = new Shape( color, parent.shapes[ color ].length || 0, self )
