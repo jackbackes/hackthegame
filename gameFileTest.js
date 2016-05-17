@@ -16,7 +16,7 @@ GameModel.prototype.addBeginningState = function(){
   this.gameRound = parseInt(readline());
   var inputs = readline().split(' ');
   this.user = {
-    playerIndex: 0;
+    playerIndex: 0,
     coords: {
       x: parseInt(inputs[0]), // Your x position
       y: parseInt(inputs[1]), // Your y position
@@ -29,7 +29,7 @@ GameModel.prototype.addBeginningState = function(){
   for (var i = 0; i < opponentCount; i++) {
     this.opponents = {};
     this.opponents[i] = {
-        playerIndex: i+1;
+        playerIndex: i+1,
         inputs: readline().split(' '),
         coords: {
           x: parseInt(inputs[0]), //  x position of opponenet
@@ -251,7 +251,20 @@ Node.prototype.createShape = function(){
 function Shape( color, shapeIndex, startingNode ) {
   this.nodes = [ startingNode ];
 }
-Shape.prototype.findCentroid = function(){}
+
+Shape.prototype.getCentroid = function(){}
+
+Shape.prototype.value = function( player ){
+    var shape = this;
+    var area = shapeArea( shape );
+    var perimeter = nonColoredPerimeter( player, shape ).length;
+    var distances = states.players.map( function(thisPlayer){
+        return sortPerimeterByDistance( player, shape );
+    });
+    var normalizedDistance = Math.min.apply( null, distances.slice(1) )/distances[0];
+    // printErr( area, perimeter, distances, normalizedDistance );
+    return area/(perimeter + distances[0]) * normalizedDistance;
+}
 
 //minimax function
 var Minimax = function(state, depth, maximizingPlayer, heuristic){
@@ -270,7 +283,7 @@ Minimax.prototype.state = function( state ){
 }
 
 Minimax.prototype.addHeuristic = function( heuristic, weighting ) {
-  this.heuristics.push( {heuristic, weighting} );
+  this.heuristics.push( {heuristic: heuristic, weighting: weighting} );
   return this;
 }
 
@@ -288,7 +301,7 @@ Minimax.prototype.minimizingPlayers = function( players, maximizingPlayer ){
 }
 
 
-Minimax.prototype.calculateHeuristicValue( heuristic, state ){
+Minimax.prototype.calculateHeuristicValue = function( heuristic, state ){
   var maximizingPlayer = this.maximizingPlayer;
   var minimizingPlayers = this.minimizingPlayers;
   var max = this.heuristics.reduce( function( previous, weightedHeuristic ){
@@ -340,7 +353,8 @@ var heuristics = {
     weighting: 0.5
   },
   neutralsToClose: {
-    heuristic: function( )
+    heuristic: function( ){},
+    weighting: 0.5
   }
 }
 
@@ -351,7 +365,9 @@ function shapeArea( shape ){
 function getShapePerimeter( shape ){
   var color = shape.color;
   shape.perimeter = shape.nodes.filter( function( node ){
-    return node.connections.color !== color;
+    return node.connections.some( function(connection){
+          return connection.color !== color;
+      })
   })
   return shape.perimeter;
 }
@@ -362,21 +378,43 @@ function nonColoredPerimeter( player, shape ){
     return node.color != playerColor;
   })
 }
-Shape.prototype.getCenter(){
+Shape.prototype.getCenter= function(){
 
 }
-function sortPerimeterByDistance( player, shape, state){
-  var shapePerimeter = nonColoredPerimeter( player, shape );
-  return shapePerimeter.sort( function( prevNode, node ){
-    var playerX = player.coords.x;
-    var playerY = player.coords.y;
-    var currentX = node.x;
-    var currentY = node.y;
+function sortPerimeterByDistance( player, shape ){
+  // var shapePerimeter = nonColoredPerimeter( player, shape );
+  var playerX = player.coords.x;
+  var playerY = player.coords.y;
+  var shapePerimeter = getShapePerimeter( shape );
+  var sortedPerimeter = shapePerimeter.slice().sort( function( prevNode, node ){
+      var currentX = node.x;
+      var currentY = node.y;
     var currentDist = Math.abs( playerX - currentX ) + Math.abs( playerY - currentY );
     var prevX = prevNode.x;
     var prevY = prevNode.y;
     var prevDist = Math.abs( playerX - prevX ) + Math.abs( playerY - prevY );
+    return prevDist - currentDist;
   })
+  var sortedX = sortedPerimeter[0].x;
+  var sortedY = sortedPerimeter[0].y;
+  return Math.abs( playerX - sortedX ) + Math.abs( playerY - sortedY );
+}
+function getClosestPointOnPerimeter( player, shape ){
+    var playerX = player.coords.x;
+    var playerY = player.coords.y;
+    var shapePerimeter = getShapePerimeter( shape );
+    var sortedPerimeter = shapePerimeter.slice().sort( function( prevNode, node ){
+        var currentX = node.x;
+        var currentY = node.y;
+      var currentDist = Math.abs( playerX - currentX ) + Math.abs( playerY - currentY );
+      var prevX = prevNode.x;
+      var prevY = prevNode.y;
+      var prevDist = Math.abs( playerX - prevX ) + Math.abs( playerY - prevY );
+      return prevDist - currentDist;
+    })
+    var sortedX = sortedPerimeter[0].x;
+    var sortedY = sortedPerimeter[0].y;
+    return sortedPerimeter[0];
 }
 function bestPathToCenter( player, shape, state ){}
 function bestPathToPerimeter( player, shape ){}
@@ -386,26 +424,46 @@ function scoreForShape( shape, player, state ){}
 function scorePerTurn( shape, player, state ){}
 
 
+// ======
+// compare shapes
+// ======
+
+function pickBestShape( state, player ){
+    printErr(Object.keys(state.shapes));
+    var shapesWithValues = state.shapes['.'].map( function ( shape, index ){
+         shape.thisValue = shape.value( player );
+         return shape;
+    });
+    return shapesWithValues.sort( function(prev, curr){
+        return curr.thisValue - prev.thisValue;
+    })[0]
+}
+
+
 // =========
 //initializing round
 // =========
 var currentRound = 0;
 var currentTurnState;
 while(true){
-  states.addBeginningState();
-  currentTurnState = states.states[0];
-  states.findNodeNeighbors( currentTurnState );
-  printErr('234');
-  states.connectNodes( currentTurnState );
-  printErr('236');
-  states.tesellate( currentTurnState );
-  printErr('238');
-  currentTurnState.shapes['.'].forEach( function( shape ) {
-    printErr(shape.nodes[0].x, shape.nodes[0].y, shape.nodes.length);
-  });
+    try{
+      states.addBeginningState();
+      currentTurnState = states.states[0];
+      states.findNodeNeighbors( currentTurnState );
+      states.connectNodes( currentTurnState );
+      states.tesellate( currentTurnState );
+      var bestPick = pickBestShape( currentTurnState, states.players[0] )
+      printErr( 'best pick test:', bestPick.thisValue, bestPick.nodes[0].x, bestPick.nodes[0].y, bestPick.nodes.length )
+    //   currentTurnState.shapes['.'].forEach( function( shape ) {
+    //       printErr(shape.thisValue, shape.nodes[0].x, shape.nodes[0].y, shape.nodes.length);
+    //   });
+      var bestClosestPoint = getClosestPointOnPerimeter( states.players[0], bestPick )
+      print(bestClosestPoint.x + " " + bestClosestPoint.y + " burninating the people");
 
-
-  print(Math.floor(Math.random()*30) + ' ' + Math.floor(Math.random()*20));
-
-  currentRound++;
+      currentRound++;
+  }
+  catch(err){
+      print('17 10 whoops, there was a problem');
+      printErr(err);
+  }
 }
