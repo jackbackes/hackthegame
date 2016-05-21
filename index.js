@@ -6,19 +6,37 @@ var readline = require('readline');
 var un = process.argv[2];
 var pass = process.argv[3];
 
+var appOptions = cliArgs();
+/*
+command line arguments that can be used:
+  [-f username pass]
+  [-b relativeBotPath]
+*/
+function cliArgs(){
+  var args = process.argv;
+  var appOptions = {
+    facebookLogin: args.indexOf("--f") !== -1 ? args.splice( args.indexOf("--f"), 3 ) : undefined,
+    botPaths: args.indexOf("--b") !== -1 ? [args[args.indexOf("--b")+1]] : undefined
+  }
+  return appOptions;
+}
 
-var options = {
+
+console.log(appOptions);
+
+var webDriverOptions = {
     desiredCapabilities: {
         browserName: 'chrome'
     }
 };
-var botsToTest = ['./bots/testbot.js']
+var botsToTest = appOptions.botPaths || ['./bots/testbot.js']
 var botData = botsToTest.map( bot => fs.readFileSync(bot, 'utf8') );
 
-var client = wdio.remote(options).init();
+var client = wdio.remote(webDriverOptions).init();
 
 
-client.addCommand("loginToFacebook", function async (email, pass, callbackUrl, socialLoginSelector) {
+client.addCommand("loginToFacebook", function async (email, pass, callbackUrl, socialLoginSelector, appOptions) {
+  if(!!appOptions.facebookLogin){email = appOptions.facebookLogin[1]; pass = appOptions.facebookLogin[2];}
   if(!email || !pass ) throw 'must provide email and password';
   if(!callbackUrl || !socialLoginSelector) throw 'must provide callback url and social login selector'
   var self = this;
@@ -67,7 +85,7 @@ client.addCommand('clearBot', function(){
   return self.pause(3000).execute("angular.element('.code-editor').scope().code=''")
 })
 
-client.addCommand('injectBot', function(botText){
+client.addCommand('injectBot', function(botText, appOptions){
   var self = this;
   return self.pause(3000).call(function(){
     botText = botText.split('\"').join('\\\"').split('\n').join('\\ \\n');
@@ -110,12 +128,12 @@ client.addCommand('submitBot',function(){
 
 //command chain:
 client
-    .loginToFacebook( un, pass, 'https://www.codingame.com/signin', '.social-connect-button-facebook')
+    .loginToFacebook( un, pass, 'https://www.codingame.com/signin', '.social-connect-button-facebook', appOptions)
     .loadGame(69)
-    // .selectContentWindow()
-    // .selectAll()
+    // // .selectContentWindow()
+    // // .selectAll()
     .clearBot()
     .injectBot(botData[0])
-    // .injectBot('./bots/testbot.js')
-    // .shutDownSession()
+    // // .injectBot('./bots/testbot.js')
+    // // .shutDownSession()
     .catch(function(err){console.log(err)})

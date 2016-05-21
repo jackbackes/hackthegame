@@ -1,3 +1,4 @@
+//the test worked!
 //initializing game
 var N_RANDOM_NODES = 20;
 var __persistForNRounds = 5;
