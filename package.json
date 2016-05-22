@@ -1,0 +1,24 @@
+{
+  "name": "hackthegame",
+  "version": "1.0.0",
+  "description": "",
+  "main": "gameFileTest.js",
+  "scripts": {
+    "test": "nodemon -x mocha test/*.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thejohnbackes/hackthegame.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/thejohnbackes/hackthegame/issues"
+  },
+  "homepage": "https://github.com/thejohnbackes/hackthegame#readme",
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "chai-spies": "^0.7.1",
+    "mocha": "^2.4.5"
+  }
+}
