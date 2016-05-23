@@ -44,7 +44,7 @@ GeneticAlgorithm.prototype.crossover = function (chromosome1, chromosome2) {
     ];
 };
 
-GeneticAlgorithm.prototype.run = function (fitness, length, p_c, p_m, iterations) {
+GeneticAlgorithm.prototype.run = function (fitnessFn, length, p_c, p_m, iterations) {
     const popSize = 100;
     iterations = iterations || 100;
     let population = Array.apply(null, Array(popSize)).map(function (_) {
@@ -52,7 +52,7 @@ GeneticAlgorithm.prototype.run = function (fitness, length, p_c, p_m, iterations
     }.bind(this));
 
     for (let i = 0; i < iterations; i++) {
-        let fitnesses = population.map(fitness);
+        let fitnesses = population.map(fitnessFn);
         let newPop = [];
         while (newPop.length < popSize) {
             let selectedPair = [this.select(population, fitnesses), this.select(population, fitnesses)];
@@ -66,5 +66,5 @@ GeneticAlgorithm.prototype.run = function (fitness, length, p_c, p_m, iterations
         }
         population = newPop;
     }
-    return population[population.map(fitness).indexOf(1)];
+    return population[population.map(fitnessFn).indexOf(1)];
 };
