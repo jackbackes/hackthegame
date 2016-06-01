@@ -1,0 +1,30 @@
+{
+    "name": "hackthegame",
+    "version": "1.0.0",
+    "description": "",
+    "main": "gameFileTest.js",
+    "scripts": {
+        "test": "nodemon -x ./node_modules/.bin/mocha test/*.spec.js",
+        "db-init": "psql -f db-init.sql",
+        "postinstall": "npm run db-init"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/thejohnbackes/hackthegame.git"
+    },
+    "author": "",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/thejohnbackes/hackthegame/issues"
+    },
+    "dependencies": {
+        "bluebird": "3.0.6",
+        "pg": "4.5.5",
+        "sequelize": "3.23.2"
+    },
+    "devDependencies": {
+        "chai": "3.4.1",
+        "mocha": "2.3.4"
+    },
+    "homepage": "https://github.com/thejohnbackes/hackthegame#readme"
+}
