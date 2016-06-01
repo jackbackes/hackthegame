@@ -10,7 +10,7 @@ var allowedTypes = ['bias', 'input', 'output', 'hidden'];
 var Node = db.define('node', {
     type: {
         type: Sequelize.STRING,
-        allowNull: false,
+        defaultValue: 'hidden',
         validate: {
             isIn: {
                 args: allowedTypes,
