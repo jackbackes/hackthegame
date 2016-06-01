@@ -1,6 +1,11 @@
+/* jshint node: true */
+
 'use strict';
 
-var config = require('../config.json');
 var Sequelize = require('sequelize');
 
-module.exports = new Sequelize('postgres://localhost:5432/neatdb',{logging: false});
+var database = process.env.NODE_ENV === 'test' ? 'neatdbtest' : 'neatdb'
+
+module.exports = new Sequelize('postgres://localhost:5432/' + database, {
+    logging: false
+});

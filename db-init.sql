@@ -1,1 +1,3 @@
-CREATE DATABASE neatdb
+CREATE DATABASE neatdb;
+
+CREATE DATABASE neatdbtest;

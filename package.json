@@ -4,7 +4,7 @@
     "description": "",
     "main": "gameFileTest.js",
     "scripts": {
-        "test": "nodemon -x ./node_modules/.bin/mocha test/*.spec.js",
+        "test": "NODE_ENV=test nodemon -x ./node_modules/.bin/mocha test/*.spec.js",
         "db-init": "psql -f db-init.sql",
         "postinstall": "npm run db-init"
     },
